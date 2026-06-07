@@ -25,7 +25,7 @@ pip install pygame
 
 ```bash
 git clone <repo-url>
-cd blob-master
+cd 2D_Game
 python main.py
 ```
 
