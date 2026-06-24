@@ -2,7 +2,7 @@
 
 A 2D platformer built in Python with **Pygame**. Guide the character past lava and cobwebs, avoid enemies "blobs", and reach the door at the end of each level to move to the next level — all in maps you can build and edit with the built-in level editor.
 
-![Gameplay](screenshot.png)
+![Gameplay](Screenshot.png)
 
 ## Features
 
