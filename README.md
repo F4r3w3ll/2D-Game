@@ -63,7 +63,3 @@ In editor mode you can save the map (`save`), load a custom level file (`upload`
 ├── font/              # extra assets (e.g. Minecraft.ttf font)
 └── level*.txt         # saved game levels
 ```
-
-## License
-
-Released under the MIT License.
