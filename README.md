@@ -36,6 +36,7 @@ python main.py
 | A / D     | Move left / right       |
 | Space     | Jump                    |
 | Esc       | Pause / menu            |
+| O / P     | Fade in music / Fade out music|
 
 ### Level editor
 
