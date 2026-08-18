@@ -2,6 +2,8 @@ import os
 import sys
 from tkinter import filedialog
 import pygame
+from pygame import mixer
+
 
 def get_image(sheet, frame, width, height, scale, color):
 
@@ -13,7 +15,12 @@ def get_image(sheet, frame, width, height, scale, color):
     return image
 
 
+pygame.mixer.pre_init(44100,-16,2,512)
 pygame.init()
+mixer.init()
+
+pygame.mixer.music.load("sounds\music\song.mp3")
+pygame.mixer.music.set_volume(0.05)
 
 pygame.display.set_caption("Blob Master")
 screen = pygame.display.set_mode((1280, 720), 0, 32)
@@ -105,6 +112,21 @@ grid.set_colorkey((47, 232, 45))
 walk_right = [get_image(sprite, i, 16, 32, 2, colorkey) for i in range(8)]
 walk_left = [get_image(sprite_left, i, 16, 32, 2, colorkey) for i in range(8)]
 jump_frame = [get_image(sprite_jump, i, 16, 32, 2, colorkey) for i in range(8)]
+walk_sound = pygame.mixer.Sound("sounds/walk.mp3")
+jump_sound = pygame.mixer.Sound("sounds/jumping.mp3")
+blob_deth_sound = pygame.mixer.Sound("sounds/blob_sfx.mp3")
+player_deth_sound = pygame.mixer.Sound("sounds/death_sound(1).mp3")
+victory_sound = pygame.mixer.Sound("sounds/victory_sound.mp3")
+fail_sound = pygame.mixer.Sound("sounds/fail.mp3")
+door_sound = pygame.mixer.Sound("sounds/door.mp3")
+
+jump_sound.set_volume(0.5)
+walk_sound.set_volume(0.1)
+blob_deth_sound.set_volume(0.2)
+player_deth_sound.set_volume(0.2)
+fail_sound.set_volume(0.1)
+victory_sound.set_volume(0.2)
+door_sound.set_volume(0.2)
 
 
 cur_right = 0
@@ -113,6 +135,7 @@ cur_jump = 0
 walk_r = 0
 walk_l = 0
 jump_timer = 0
+grass_t = 0
 
 
 def generate_new_level():
@@ -139,6 +162,15 @@ def load_level(leve_path):
         new_level = [list(line.rstrip().strip("[]").split(",")) for line in f]
     return new_level
      
+
+def play_music():
+    global game_pause
+    print(game_pause)
+
+    if not game_pause:
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer_music.play(0,0,200)
+
 
 def get_max_level():
     global max_level
@@ -178,9 +210,10 @@ def drawGrid():
 
 
 def won_screen():
-    global screen, won_img, player_state, level, world, start_game
+    global screen, won_img, player_state, level, world, start_game, won
     screen.blit(won_img, (560, 40))
     level = 0
+    pygame.mixer_music.pause()
     if reset.draw():
         reset_check()
     elif exit.draw():
@@ -213,6 +246,11 @@ def restart():
 
     global player_state, level, world, lifes, won, start_game, game_pause
     if not player_state:
+        if lifes == 0:
+            fail_sound.play()
+            lifes = 3
+            level = 0
+        
         if reset.draw():
             if lifes == 0:
                 level = 0
@@ -228,6 +266,7 @@ def restart():
             level = 0 
             lifes = 3
             won = False
+
 
 def reset_check():
     global lifes, level, player_state, game_pause, world, won
@@ -245,7 +284,7 @@ def reset_check():
 
 def pause():
 
-    global game_pause, lifes , player_state, level, world, start_game
+    global game_pause, lifes , player_state, level, world, start_game, won
 
     if game_pause:
         if start.draw():
@@ -314,15 +353,15 @@ def move(rect, movement, tiles):
     rect.y += movement[1]
     collision = test_collision(rect, tiles)
     for tile in collision:
-        if movement[1] < 0:
-            rect.top = tile.bottom
-            y_vel = 0
-            on_ground = False
         if movement[1] > 0:
             rect.bottom = tile.top
             jumping = False
             on_ground = True
             y_vel = j_height
+        if movement[1] < 0:
+            rect.top = tile.bottom
+            y_vel = 0
+            on_ground = False
 
     return rect
 
@@ -358,6 +397,14 @@ def update_jump():
         cur_jump = 0
 
 
+def walking_sound():
+    global movement, walk_sound, on_ground, grass_t
+    if movement[0] != 0 and on_ground == True:
+        if grass_t == 0:
+            walk_sound.play()
+            grass_t = 20
+
+
 def render():
     global w_r, w_l, j, cur_jump, cur_left, cur_right
     if right:
@@ -385,16 +432,15 @@ def player_blob_collision(blob, player):
     if current_time < blob.col_cd:
         return
 
-    if (
-        feet_rect.colliderect(blob_rect)
-        and player.bottom <= blob_rect.top
-        and not on_ground
-    ):
+    if (feet_rect.colliderect(blob_rect) and player.bottom <= blob_rect.top and not on_ground):
         blob.death()
+        blob_deth_sound.play()
         jumping = True
         return
 
     elif player.colliderect(blob_rect):
+        if lifes - 1 > 0:
+            player_deth_sound.play()
         lifes -= 1
         player_state = False
 
@@ -425,6 +471,8 @@ def door_coll():
 
     for tile in world.doors:
         if p_rect.colliderect(tile):
+            if level != max_level:
+                door_sound.play()
             level_complet = True
             return level_complet
 
@@ -695,6 +743,8 @@ get_max_level()
 level_path = f"level{max_level+1}.txt" 
 new_level = generate_new_level()
 while True:
+
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
@@ -707,9 +757,16 @@ while True:
                     left = True
                 if event.key == pygame.K_SPACE:
                     if on_ground:
+                        jump_sound.play()
                         jumping = True
+                if event.key == pygame.K_p:
+                    pygame.mixer.music.fadeout(500)
+                if event.key == pygame.K_o:
+                    pygame.mixer.music.play(-1,0,500)
                 if event.key == pygame.K_ESCAPE:
                     game_pause = True
+                    pygame.mixer_music.pause()
+                    
                     if won:
                         sys.exit()
 
@@ -867,14 +924,17 @@ while True:
 
         elif won:
             won_screen()
-        else:
+        elif not game_pause:
             if player_rect.y > 720:
                 player_state = False
                 lifes -= 1
             text = font.render(f"x {lifes}", True, white)
+            if grass_t > 0:
+                grass_t -= 1
             screen.fill((153,217,234))
             #screen.blit(bg,(0,0))
             movement = [0, 0]
+            
             world.draw()
             screen.blit(life_img, (0, 0))
             screen.blit(text, (64, 15))
@@ -891,23 +951,25 @@ while True:
                 else:
                     movement[0] -= speed
 
+            play_music()
             cobweb_coll()
             jump(movement)
             check_lava_col()
             player = move(player_rect, movement, world.tiles)
             render()
+            walking_sound()
             restart()
             door_coll()
 
             if level_complet:
                 if level == max_level:
                     won = True
+                    victory_sound.play()
                 else:
                     level += 1
                 world = reset_level(level)
                 level_complet = False
 
             blob_update(player)
-
     pygame.display.update()
     clock.tick(60)
