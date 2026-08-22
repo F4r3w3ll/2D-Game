@@ -3,6 +3,7 @@ import sys
 from tkinter import filedialog
 import pygame
 from pygame import mixer
+import random
 
 
 def get_image(sheet, frame, width, height, scale, color):
@@ -63,6 +64,7 @@ blob_img = [get_image(sprite, i, 16, 16, 2, (245, 155, 20)) for i in range(2)]
 blob_i = blob_img[0]
 enter_blob_speed = False
 enter_blobl_range = False
+lava_t = 120
 
 # Player variables
 
@@ -115,19 +117,24 @@ jump_frame = [get_image(sprite_jump, i, 16, 32, 2, colorkey) for i in range(8)]
 walk_sound = pygame.mixer.Sound("sounds/walk.mp3")
 jump_sound = pygame.mixer.Sound("sounds/jumping.mp3")
 blob_deth_sound = pygame.mixer.Sound("sounds/blob_sfx.mp3")
-player_deth_sound = pygame.mixer.Sound("sounds/death_sound(1).mp3")
+player_deth_sound = pygame.mixer.Sound("sounds/death_sound.mp3")
 victory_sound = pygame.mixer.Sound("sounds/victory_sound.mp3")
 fail_sound = pygame.mixer.Sound("sounds/fail.mp3")
 door_sound = pygame.mixer.Sound("sounds/door.mp3")
+blob_walking_sound = pygame.mixer.Sound("sounds/blob_walking_sfx.mp3")
+lava_bloop_sound = pygame.mixer.Sound("sounds/lava_sfx.mp3")
+cobweb_sound = pygame.mixer.Sound("sounds/cobweb.mp3")
 
-jump_sound.set_volume(0.5)
+jump_sound.set_volume(0.3)
 walk_sound.set_volume(0.1)
 blob_deth_sound.set_volume(0.2)
 player_deth_sound.set_volume(0.2)
 fail_sound.set_volume(0.1)
 victory_sound.set_volume(0.2)
-door_sound.set_volume(0.2)
-
+door_sound.set_volume(0.1)
+blob_walking_sound.set_volume(0.01)
+lava_bloop_sound.set_volume(0.3)
+cobweb_sound.set_volume(0.02)
 
 cur_right = 0
 cur_left = 0
@@ -165,7 +172,6 @@ def load_level(leve_path):
 
 def play_music():
     global game_pause
-    print(game_pause)
 
     if not game_pause:
         if not pygame.mixer.music.get_busy():
@@ -326,16 +332,21 @@ def test_collision(rect, tiles):
 
 def check_lava_col():
 
-    global player_state, lifes
+    global player_state, lifes, player_rect, player_img, lava_t
 
     feet_rect = pygame.Rect(player_rect.x, player_rect.bottom, player_rect.width, 2)
-
     for lava_tile in world.lava_tiles:
         if feet_rect.colliderect(lava_tile):
+            if lifes - 1 > 0:
+                player_deth_sound.play()
             player_state = False
             lifes -= 1
-            return
-
+    if lava_t == 0:
+        lava_bloop_sound.play()
+        lava_t = random.randint(100,500)
+    else:
+        lava_t -= 1
+        
 
 def move(rect, movement, tiles):
 
@@ -455,6 +466,7 @@ def cobweb_coll():
             jumping = False
 
     if on_cobweb:
+        cobweb_sound.play()
         power = 1
         y_gravity = 1
         speed = 1
@@ -621,12 +633,14 @@ class Blob:
         self.r = True
         self.l = False
         self.col_cd = 0
+        self.blob_t = 0
+        self.state = True
 
     def update_r(self):
 
         self.walk_r += 1
 
-        if self.walk_r % 16 == 0:
+        if self.walk_r % 64 == 0:
             self.cur_r += 1
             self.rect.y = self.y - 2
 
@@ -639,7 +653,7 @@ class Blob:
 
         self.walk_l += 1
 
-        if self.walk_l % 16 == 0:
+        if self.walk_l % 64 == 0:
             self.cur_l += 1
             self.rect.y = self.y
 
@@ -660,11 +674,22 @@ class Blob:
 
         if self.r:
             self.rect.x += self.speed
+            if self.state:
+                if self.blob_t == 0:
+                    blob_walking_sound.play()
+                    self.blob_t = 50/self.speed
 
         elif self.l:
             self.rect.x -= self.speed
+            if self.state:
+                if self.blob_t == 0:
+                    blob_walking_sound.play()
+                    self.blob_t = 50/self.speed
+        if self.blob_t > 0:
+            self.blob_t -= 1
 
     def death(self):
+        self.state = False
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.x = 1000
         self.y = 1000
@@ -931,6 +956,7 @@ while True:
             text = font.render(f"x {lifes}", True, white)
             if grass_t > 0:
                 grass_t -= 1
+
             screen.fill((153,217,234))
             #screen.blit(bg,(0,0))
             movement = [0, 0]
