@@ -6,6 +6,10 @@ from pygame import mixer
 import random
 
 
+"""
+"""
+
+
 def get_image(sheet, frame, width, height, scale, color):
 
     image = pygame.Surface((width, height))
@@ -18,7 +22,6 @@ def get_image(sheet, frame, width, height, scale, color):
 
 pygame.mixer.pre_init(44100,-16,2,512)
 pygame.init()
-mixer.init()
 
 pygame.mixer.music.load("sounds\music\song.mp3")
 pygame.mixer.music.set_volume(0.05)
@@ -65,6 +68,9 @@ blob_i = blob_img[0]
 enter_blob_speed = False
 enter_blobl_range = False
 lava_t = 120
+cobweb_t = 30
+place_t = 8
+break_t = 8
 
 # Player variables
 
@@ -124,6 +130,9 @@ door_sound = pygame.mixer.Sound("sounds/door.mp3")
 blob_walking_sound = pygame.mixer.Sound("sounds/blob_walking_sfx.mp3")
 lava_bloop_sound = pygame.mixer.Sound("sounds/lava_sfx.mp3")
 cobweb_sound = pygame.mixer.Sound("sounds/cobweb.mp3")
+block_place_sound = pygame.mixer.Sound("sounds/block_place.wav")
+poof_sound = pygame.mixer.Sound("sounds/poof_sound.mp3")
+
 
 jump_sound.set_volume(0.3)
 walk_sound.set_volume(0.1)
@@ -134,7 +143,9 @@ victory_sound.set_volume(0.2)
 door_sound.set_volume(0.1)
 blob_walking_sound.set_volume(0.01)
 lava_bloop_sound.set_volume(0.3)
-cobweb_sound.set_volume(0.02)
+cobweb_sound.set_volume(0.1)
+block_place_sound.set_volume(0.05)
+poof_sound.set_volume(0.05)
 
 cur_right = 0
 cur_left = 0
@@ -143,6 +154,7 @@ walk_r = 0
 walk_l = 0
 jump_timer = 0
 grass_t = 0
+lava_count = 0
 
 
 def generate_new_level():
@@ -332,15 +344,18 @@ def test_collision(rect, tiles):
 
 def check_lava_col():
 
-    global player_state, lifes, player_rect, player_img, lava_t
+    global player_state, lifes, player_rect, player_img, lava_t, lava_count
 
     feet_rect = pygame.Rect(player_rect.x, player_rect.bottom, player_rect.width, 2)
     for lava_tile in world.lava_tiles:
         if feet_rect.colliderect(lava_tile):
+            lava_count = 1
             if lifes - 1 > 0:
                 player_deth_sound.play()
             player_state = False
-            lifes -= 1
+    lifes -= lava_count
+    lava_count = 0
+
     if lava_t == 0:
         lava_bloop_sound.play()
         lava_t = random.randint(100,500)
@@ -457,7 +472,7 @@ def player_blob_collision(blob, player):
 
 
 def cobweb_coll():
-    global player_rect, power, on_ground, jumping, y_gravity, speed
+    global player_rect, power, on_ground, jumping, y_gravity, speed, cobweb_t
     on_cobweb = False
     for tile in world.cobweb:
         if player_rect.colliderect(tile):
@@ -466,7 +481,12 @@ def cobweb_coll():
             jumping = False
 
     if on_cobweb:
-        cobweb_sound.play()
+        if cobweb_t == 0:
+            cobweb_sound.play()
+            cobweb_t = 60
+        else:
+            cobweb_t -= 1
+        
         power = 1
         y_gravity = 1
         speed = 1
@@ -829,6 +849,7 @@ while True:
                     if block == 9:
                         clicks -= 1
                     
+                    
     if not start_game and not editor_state:
         screen.fill((153,217,234))
         #screen.blit(bg,(0,0))
@@ -855,6 +876,12 @@ while True:
         left, middle, right = pygame.mouse.get_pressed()
         if not game_pause:
             if left:
+                if place_t == 0:
+                    block_place_sound.play()
+                    place_t = 6
+                else:
+                    place_t -= 1
+
                 if block == 9:
                     if clicks == 2:
                         start_x = x
@@ -864,7 +891,6 @@ while True:
                         end_y = y
                     if clicks == 0:
                         block = 710 + abs(int((start_x - end_x)/32)) 
-                        print("block: ", block)
                         new_level[int(start_y / 32)][int(start_x / 32)] = block
                         block = 9
                         clicks = 3
@@ -873,6 +899,11 @@ while True:
                     new_level[int(y / 32)][int(x / 32)] = block
             if right:
                 new_level[int(y / 32)][int(x / 32)] = 0
+                if break_t == 0:
+                    poof_sound.play()
+                    break_t = 6
+                else:
+                    break_t -= 1
 
 
         word = World(world_data)
